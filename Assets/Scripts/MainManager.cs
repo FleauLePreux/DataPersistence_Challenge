@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
 public class MainManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
+    public Text BestScoreText;
     public GameObject GameOverText;
     
     private bool m_Started = false;
@@ -18,10 +20,14 @@ public class MainManager : MonoBehaviour
     
     private bool m_GameOver = false;
 
+    private DataManager dataManager;
+
     
     // Start is called before the first frame update
     void Start()
     {
+        dataManager = GameObject.Find("DataManager").GetComponent<DataManager>();
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -35,6 +41,14 @@ public class MainManager : MonoBehaviour
                 brick.PointValue = pointCountArray[i];
                 brick.onDestroyed.AddListener(AddPoint);
             }
+        }
+
+        m_Points = -1;
+        AddPoint(1);
+
+        if(dataManager.BestPlayer != null)
+        {
+            BestScoreText.text = "Best Score: " + dataManager.BestPlayer + ": " + dataManager.BestScore;
         }
     }
 
@@ -65,12 +79,42 @@ public class MainManager : MonoBehaviour
     void AddPoint(int point)
     {
         m_Points += point;
-        ScoreText.text = $"Score : {m_Points}";
+        ScoreText.text = dataManager.PlayerName + $" Score : {m_Points}";
     }
 
     public void GameOver()
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+        if(m_Points > dataManager.BestScore)
+        {
+            dataManager.BestScore = m_Points;
+            dataManager.BestPlayer = dataManager.PlayerName;
+        }
+
+        SaveGame(dataManager.PlayerName, dataManager.BestPlayer , dataManager.BestScore);
+    }
+
+    [System.Serializable]
+    public class SaveFile
+    {
+        public string playerName;
+        public string bestPlayer;
+        public int bestScore;
+    }
+
+    public void InitialiserSaveFile(SaveFile saveFile, string NameP, string bestP, int bestS)
+    {
+        saveFile.playerName = NameP;
+        saveFile.bestPlayer = bestP;
+        saveFile.bestScore = bestS;
+    }
+
+    public void SaveGame(string NameP, string bestP, int bestS)
+    {
+        SaveFile saveFileInstance = new SaveFile();
+        InitialiserSaveFile(saveFileInstance, NameP, bestP, bestS);
+        string saveText = JsonUtility.ToJson(saveFileInstance);
+        File.WriteAllText(Application.persistentDataPath + "/saveFile.json", saveText);
     }
 }
